@@ -60,6 +60,13 @@ trainset = torchvision.datasets.CIFAR10(
 trainloader = torch.utils.data.DataLoader(
     trainset, batch_size=128, shuffle=True, num_workers=2)
 
+train_openset = torchvision.datasets.SVHN(
+    root='./data', split='train', download=True, transform=transform_train)
+train_openloader = torch.utils.data.DataLoader(
+    train_openset, batch_size=128, shuffle=False, num_workers=2
+)
+
+
 testset = torchvision.datasets.CIFAR10(
     root='./data', train=False, download=True, transform=transform_test)
 testloader = torch.utils.data.DataLoader(
@@ -185,6 +192,7 @@ def openset_softmax_confidence(dataloader, netC):
 
 
 
+num_classes =10
 
 
 
@@ -196,15 +204,29 @@ def train(epoch):
     train_loss = 0
     correct = 0
     total = 0
-    for batch_idx, (inputs, targets) in enumerate(trainloader):
-        inputs, targets = inputs.to(device), targets.to(device)
+
+    KLD_Loss = torch.nn.KLDivLoss()
+
+    for batch_idx, ((inputs, targets) , (open_inputs,_)) in enumerate(zip(trainloader, train_openloader)):
+        uniform_dist = torch.Tensor(open_inputs.size(0), num_classes).fill_((1. / num_classes))
+        uniform_dist = uniform_dist.to(device)
+
+        inputs, open_inputs ,targets = inputs.to(device), open_inputs.to(device) ,targets.to(device)
         optimizer.zero_grad()
         outputs = net(inputs)
+        open_outputs = net(open_inputs)
+
+        log_probs = F.log_softmax(open_outputs, dim=1)
+        kld_loss = KLD_Loss(log_probs, uniform_dist)
+
         loss = criterion(outputs, targets)
-        loss.backward()
+
+        total_loss = loss+kld_loss
+
+        total_loss.backward()
         optimizer.step()
 
-        train_loss += loss.item()
+        train_loss += total_loss.item()
         _, predicted = outputs.max(1)
         total += targets.size(0)
         correct += predicted.eq(targets).sum().item()
