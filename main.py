@@ -11,8 +11,12 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 
+
+
 import torchvision
 import torchvision.transforms as transforms
+import torchvision.models as models
+
 
 import os
 import argparse
@@ -87,7 +91,7 @@ classes = ('plane', 'car', 'bird', 'cat', 'deer',
 
 print('==> Building model..')
 # net = VGG('VGG19')
-net = ResNet18()
+#net = ResNet18()
 # net = PreActResNet18()
 # net = GoogLeNet()
 # net = DenseNet121()
@@ -101,6 +105,12 @@ net = ResNet18()
 # net = EfficientNetB0()
 # net = RegNetX_200MF()
 # net = SimpleDLA()
+
+num_classes =10
+lamda= 1
+
+net = models.resnet18(pretrained=True)
+net.fc =nn.Linear(512,num_classes)
 
 
 net = net.to(device)
@@ -192,7 +202,7 @@ def openset_softmax_confidence(dataloader, netC):
 
 
 
-num_classes =10
+
 
 
 
@@ -221,7 +231,12 @@ def train(epoch):
 
         loss = criterion(outputs, targets)
 
-        total_loss = loss+kld_loss
+
+        print("cross-entropy loss :{:.2f} ".format(loss))
+        print("KL-div loss :{:.2f} ".format(kld_loss))
+
+
+        total_loss = loss+lamda*kld_loss
 
         total_loss.backward()
         optimizer.step()
