@@ -135,7 +135,7 @@ print('==> Building model..')
 # net = RegNetX_200MF()
 # net = SimpleDLA()
 
-num_classes =5
+num_classes =4
 lamda= 1
 
 net = models.resnet18(pretrained=False)
