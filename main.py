@@ -27,6 +27,7 @@ from utils import progress_bar
 import numpy as np
 
 from sklearn.metrics import roc_curve, roc_auc_score
+from sklearn import metrics
 
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
@@ -42,15 +43,18 @@ start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 # Data
 print('==> Preparing data..')
 transform_train = transforms.Compose([
-    transforms.RandomCrop(32, padding=4),
+
+    transforms.Resize(224),
     transforms.RandomHorizontalFlip(),
+    transforms.RandomRotation(90),
     transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    #transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
 ])
 
 transform_test = transforms.Compose([
+    transforms.Resize(224),
     transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    #transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
 ])
 
 
@@ -59,28 +63,53 @@ transform_test = transforms.Compose([
 
 # -----------------------------------------------------------------------------------
 
-trainset = torchvision.datasets.CIFAR10(
-    root='./data', train=True, download=True, transform=transform_train)
+# trainset = torchvision.datasets.CIFAR10(
+#     root='./data', train=True, download=True, transform=transform_train)
+# trainloader = torch.utils.data.DataLoader(
+#     trainset, batch_size=128, shuffle=True, num_workers=2)
+#
+# train_openset = torchvision.datasets.SVHN(
+#     root='./data', split='train', download=True, transform=transform_train)
+# train_openloader = torch.utils.data.DataLoader(
+#     train_openset, batch_size=128, shuffle=False, num_workers=2
+# )
+#
+#
+# testset = torchvision.datasets.CIFAR10(
+#     root='./data', train=False, download=True, transform=transform_test)
+# testloader = torch.utils.data.DataLoader(
+#     testset, batch_size=100, shuffle=False, num_workers=2)
+#
+# openset = torchvision.datasets.SVHN(
+#     './data/open/SVHN', split='test',download=True, transform=transform_test)
+# openloader = torch.utils.data.DataLoader(
+#     openset, batch_size=100, shuffle=False, num_workers=2
+# )
+
+trainset = torchvision.datasets.ImageFolder(
+    root='./data/custom/train_data', transform=transform_train)
 trainloader = torch.utils.data.DataLoader(
     trainset, batch_size=128, shuffle=True, num_workers=2)
 
-train_openset = torchvision.datasets.SVHN(
-    root='./data', split='train', download=True, transform=transform_train)
-train_openloader = torch.utils.data.DataLoader(
-    train_openset, batch_size=128, shuffle=False, num_workers=2
-)
+# train_openset = torchvision.datasets.SVHN(
+#     root='./data', split='train', download=True, transform=transform_train)
+# train_openloader = torch.utils.data.DataLoader(
+#     train_openset, batch_size=128, shuffle=False, num_workers=2
+# )
 
 
-testset = torchvision.datasets.CIFAR10(
-    root='./data', train=False, download=True, transform=transform_test)
+testset = torchvision.datasets.ImageFolder(
+    root='./data/custom/test_data', transform=transform_test)
 testloader = torch.utils.data.DataLoader(
     testset, batch_size=100, shuffle=False, num_workers=2)
 
-openset = torchvision.datasets.SVHN(
-    './data/open/SVHN', split='test',download=True, transform=transform_test)
+openset = torchvision.datasets.ImageFolder(
+    root='./data/custom/open_data', transform=transform_test)
 openloader = torch.utils.data.DataLoader(
     openset, batch_size=100, shuffle=False, num_workers=2
 )
+
+
 
 # --------------------------------------------------------------------------------
 
@@ -106,17 +135,17 @@ print('==> Building model..')
 # net = RegNetX_200MF()
 # net = SimpleDLA()
 
-num_classes =10
+num_classes =5
 lamda= 1
 
-net = models.resnet18(pretrained=True)
+net = models.resnet18(pretrained=False)
 net.fc =nn.Linear(512,num_classes)
 
 
 net = net.to(device)
-if device == 'cuda':
-    net = torch.nn.DataParallel(net)
-    cudnn.benchmark = True
+# if device == 'cuda':
+#     net = torch.nn.DataParallel(net)
+#     cudnn.benchmark = True
 
 
 # 저장된 모델을 load하는 부분입니다.
@@ -200,6 +229,34 @@ def openset_softmax_confidence(dataloader, netC):
     return -np.array(openset_scores)
 
 
+def train(epoch):
+    print('\nEpoch: %d' % epoch)
+    net.train()
+    train_loss = 0
+    correct = 0
+    total = 0
+
+
+    for batch_idx, (inputs, targets) in enumerate(trainloader):
+
+        inputs ,targets = inputs.to(device) ,targets.to(device)
+        optimizer.zero_grad()
+        outputs = net(inputs)
+
+
+        loss = criterion(outputs, targets)
+
+
+        loss.backward()
+        optimizer.step()
+
+        train_loss += loss.item()
+        _, predicted = outputs.max(1)
+        total += targets.size(0)
+        correct += predicted.eq(targets).sum().item()
+
+        progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
+                     % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
 
 
@@ -208,7 +265,7 @@ def openset_softmax_confidence(dataloader, netC):
 
 
 # Training 하는 함수입니다.
-def train(epoch):
+def open_train(epoch):
     print('\nEpoch: %d' % epoch)
     net.train()
     train_loss = 0
@@ -257,6 +314,10 @@ def test(epoch):
     test_loss = 0
     correct = 0
     total = 0
+
+    pred_all = []
+    target_all = []
+
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(testloader):
             inputs, targets = inputs.to(device), targets.to(device)
@@ -268,8 +329,12 @@ def test(epoch):
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
 
+            pred_all.extend(predicted.data.cpu().numpy())
+            target_all.extend(targets.data.cpu().numpy())
+
             progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                          % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+        print(metrics.confusion_matrix(target_all, pred_all, labels=range(num_classes)))
 
     # Save checkpoint.
     acc = 100.*correct/total
@@ -288,7 +353,7 @@ def test(epoch):
 
 if __name__=='__main__':
     #실제 코드 실행하는 부분입니다.
-    for epoch in range(start_epoch, start_epoch+200):
+    for epoch in range(start_epoch, start_epoch+300):
         train(epoch) #train 함수 호출
         test(epoch)  #test 함수 호출
 
