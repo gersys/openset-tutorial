@@ -179,10 +179,10 @@ scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
 def evaluate_openset(networks, dataloader_on, dataloader_off, **options):
 
     # closed-set test-data에서 softmax-max값을 추출하여 저장합니다.
-    d_scores_on = get_openset_scores(dataloader_on, networks, open=False **options)
+    d_scores_on = get_openset_scores(dataloader_on, networks, open=False ,**options)
 
     # open-set test-data에서 softmax-max값을 추출하여 저장합니다.
-    d_scores_off = get_openset_scores(dataloader_off, networks, open=True **options)
+    d_scores_off = get_openset_scores(dataloader_off, networks, open=True ,**options)
 
 
     # closed-set을 클래스 '0' open-set을 클래스 '1'로 지정하여 label을 생성합니다.
