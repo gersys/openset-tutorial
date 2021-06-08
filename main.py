@@ -179,10 +179,10 @@ scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
 def evaluate_openset(networks, dataloader_on, dataloader_off, **options):
 
     # closed-set test-data에서 softmax-max값을 추출하여 저장합니다.
-    d_scores_on = get_openset_scores(dataloader_on, networks, **options)
+    d_scores_on = get_openset_scores(dataloader_on, networks, open=False **options)
 
     # open-set test-data에서 softmax-max값을 추출하여 저장합니다.
-    d_scores_off = get_openset_scores(dataloader_off, networks, **options)
+    d_scores_off = get_openset_scores(dataloader_off, networks, open=True **options)
 
 
     # closed-set을 클래스 '0' open-set을 클래스 '1'로 지정하여 label을 생성합니다.
@@ -200,15 +200,15 @@ def evaluate_openset(networks, dataloader_on, dataloader_off, **options):
     return auc_score
 
 
-def get_openset_scores(dataloader, networks, dataloader_train=None, **options):
+def get_openset_scores(dataloader, networks,open, dataloader_train=None, **options):
 
     #위 코드에서 사용되는 함수로 softmax의 max값을 추출하는 함수입니다.
-    openset_scores = openset_softmax_confidence(dataloader, networks)
+    openset_scores = openset_softmax_confidence(dataloader, networks,open=open)
     return openset_scores
 
 
 
-def openset_softmax_confidence(dataloader, netC):
+def openset_softmax_confidence(dataloader, netC, open=False):
 
     # softmax의 max값을 추출하여 저장하는 부분입니다.
 
@@ -241,7 +241,9 @@ def openset_softmax_confidence(dataloader, netC):
     # 때문에 AUROC 함수가 인식하는 결과에 맞게 -를 붙여서 closed-set('0')이 작은 값, open-set ('1')은 큰값이 되도록 합니다.
     # 이 부분은 헷갈리시면 말씀해주세요.
 
-    print(metrics.confusion_matrix(target_all, pred_all, labels=range(num_classes)))
+    if open == True:
+        print("Open Confusion matrix")
+        print(metrics.confusion_matrix(target_all, pred_all, labels=range(num_classes)))
 
     return -np.array(openset_scores)
 
