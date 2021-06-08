@@ -89,7 +89,7 @@ transform_test = transforms.Compose([
 trainset = torchvision.datasets.ImageFolder(
     root='./data/custom/train_data', transform=transform_train)
 trainloader = torch.utils.data.DataLoader(
-    trainset, batch_size=128, shuffle=True, num_workers=2)
+    trainset, batch_size=128, shuffle=True, num_workers=0)
 
 # train_openset = torchvision.datasets.SVHN(
 #     root='./data', split='train', download=True, transform=transform_train)
@@ -101,12 +101,12 @@ trainloader = torch.utils.data.DataLoader(
 testset = torchvision.datasets.ImageFolder(
     root='./data/custom/test_data', transform=transform_test)
 testloader = torch.utils.data.DataLoader(
-    testset, batch_size=100, shuffle=False, num_workers=2)
+    testset, batch_size=100, shuffle=False, num_workers=0)
 
 openset = torchvision.datasets.ImageFolder(
     root='./data/custom/open_data', transform=transform_test)
 openloader = torch.utils.data.DataLoader(
-    openset, batch_size=100, shuffle=False, num_workers=2
+    openset, batch_size=100, shuffle=False, num_workers=0
 )
 
 
@@ -192,6 +192,9 @@ def evaluate_openset(networks, dataloader_on, dataloader_off, **options):
 
     # 생성한 label값과 이에 해당하는 confidence값을 이용하여 AUROC값을 추출합니다.
     auc_score = roc_auc_score(y_true, y_score)
+
+
+    #metrics.confusion_matrix(target_all, pred_all, labels=range(num_classes))
 
     return auc_score
 
@@ -334,6 +337,8 @@ def test(epoch):
 
             progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                          % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+
+        print("Closed-Set Confusion Matrix")
         print(metrics.confusion_matrix(target_all, pred_all, labels=range(num_classes)))
 
     # Save checkpoint.
