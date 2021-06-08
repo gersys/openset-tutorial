@@ -167,7 +167,7 @@ if args.resume:
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=args.lr,
                       momentum=0.9, weight_decay=5e-4)
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
 # --------------------------------------------------------------------------------------
 
 
@@ -231,9 +231,14 @@ def openset_softmax_confidence(dataloader, netC):
 
     return -np.array(openset_scores)
 
+def get_lr(optimizer):
+    for param_group in optimizer.param_groups:
+        return param_group['lr']
+
 
 def train(epoch):
     print('\nEpoch: %d' % epoch)
+    print("Current lr : {}".format(get_lr(optimizer)))
     net.train()
     train_loss = 0
     correct = 0
@@ -270,6 +275,7 @@ def train(epoch):
 # Training 하는 함수입니다.
 def open_train(epoch):
     print('\nEpoch: %d' % epoch)
+    print("Current lr : {}".format(get_lr(optimizer)))
     net.train()
     train_loss = 0
     correct = 0
