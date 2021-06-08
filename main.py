@@ -34,6 +34,7 @@ parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--resume', '-r', action='store_true',
                     help='resume from checkpoint')
+parser.add_argument('--num_cls', default=4, type=int, help="num classes")
 args = parser.parse_args()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -135,7 +136,7 @@ print('==> Building model..')
 # net = RegNetX_200MF()
 # net = SimpleDLA()
 
-num_classes =4
+num_classes =args.num_cls
 lamda= 1
 
 net = models.resnet18(pretrained=False)
@@ -213,14 +214,25 @@ def openset_softmax_confidence(dataloader, netC):
 
     # 먼저 값을 저장할 list를 선언합니다.
     openset_scores = []
+    pred_all = []
+    target_all = []
+
+    openset_prediction =print(metrics.confusion_matrix(target_all, pred_all, labels=range(num_classes)))
 
     #dataloader를 통해서 data를 받으면서 softmax값을 추출하고 이의 max값을 저장해줍니다.
     with torch.no_grad():
         for i, (images, labels) in enumerate(dataloader):
             if torch.cuda.is_available():
                 images = images.cuda()
+
+
             preds = F.softmax(netC(images), dim=1)
+
+            pred_all.extend(preds.max(dim=1)[1].data.cpu().numpy())
+            target_all.extend(labels.data.cpu().numpy())
+
             openset_scores.extend(preds.max(dim=1)[0].data.cpu().numpy())
+
 
     # 마지막에 '-'를 붙여서 return하는 이유는 다음과 같습니다.
     # 위에서 closed-set을 '0' 클래스, open-set을 '1' 클래스로 정의하였습니다.
@@ -228,6 +240,8 @@ def openset_softmax_confidence(dataloader, netC):
     # 그러나 softmax-max output값은 closed-set ('0')이 큰 값을 가지고 open-set ('1')이 작은 값을 가집니다.
     # 때문에 AUROC 함수가 인식하는 결과에 맞게 -를 붙여서 closed-set('0')이 작은 값, open-set ('1')은 큰값이 되도록 합니다.
     # 이 부분은 헷갈리시면 말씀해주세요.
+
+    print(metrics.confusion_matrix(target_all, pred_all, labels=range(num_classes)))
 
     return -np.array(openset_scores)
 
