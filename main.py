@@ -139,8 +139,8 @@ print('==> Building model..')
 num_classes =args.num_cls
 lamda= 1
 
-net = models.resnet18(pretrained=False)
-net.fc =nn.Linear(512,num_classes)
+net = models.resnet50(pretrained=True)
+net.fc =nn.Linear(2048,num_classes)
 
 
 net = net.to(device)
