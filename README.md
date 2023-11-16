@@ -1,4 +1,4 @@
-# Detect openclass by CIFAR10 with PyTorch
+# Detect open class by CIFAR10 with PyTorch
 
 ## Prerequisites
 - Python 3.6+
